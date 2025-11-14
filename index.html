@@ -63,7 +63,7 @@
 </div>
 
 <script>
-  const client = mqtt.connect('wss://test.mosquitto.org:8081/mqtt');
+  const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
 
   client.on('connect', () => {
     console.log('MQTT connecté');
@@ -89,3 +89,4 @@
 
 </body>
 </html>
+
