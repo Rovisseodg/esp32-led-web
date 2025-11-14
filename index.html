@@ -60,10 +60,11 @@
   <button class="btn on" onclick="turnOn()">ON</button>
   <button class="btn off" onclick="turnOff()">OFF</button>
   <div class="status" id="status">État : ...</div>
+  <div id="led-status" class="status">LED Status : <span id="led-state">Unknown</span></div>
 </div>
 
 <script>
-  const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+  const client = mqtt.connect('wss://test.mosquitto.org:8081/mqtt');
 
   client.on('connect', () => {
     console.log('MQTT connecté');
@@ -71,8 +72,10 @@
   });
 
   client.on('message', (topic, message) => {
+    const msg = message.toString();
     if (topic === 'maison/salon/led/state') {
-      document.getElementById('status').innerText = 'État : ' + message.toString();
+      document.getElementById('status').innerText = 'État : ' + msg;
+      document.getElementById('led-state').innerText = msg;
     }
   });
 
@@ -85,8 +88,5 @@
   }
 </script>
 
-  <div id="led-status" class="mt-4 text-xl font-semibold">LED Status : <span id="led-state">Unknown</span></div>
-
 </body>
 </html>
-
