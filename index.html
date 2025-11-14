@@ -19,13 +19,16 @@
       border-radius: 10px;
       cursor: pointer;
       color: white;
+      transition: transform 0.1s;
     }
+    button:active { transform: scale(0.95); }
     #onBtn { background-color: #28a745; }
     #offBtn { background-color: #dc3545; }
     #status {
       margin-top: 20px;
       font-weight: bold;
       font-size: 18px;
+      color: #555;
     }
   </style>
 </head>
@@ -48,7 +51,7 @@
     client.on('connect', () => {
       console.log('Connecté au broker MQTT');
       statusDiv.textContent = 'Statut : Connecté au broker MQTT';
-      client.subscribe('maison/salon/led');
+      client.subscribe('maison/salon/led'); // topic identique à l'ESP32
     });
 
     client.on('message', (topic, message) => {
