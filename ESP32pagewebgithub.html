@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 LED Remote</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 50px;
+      background-color: #f4f4f4;
+    }
+    h1 { color: #333; }
+    button {
+      font-size: 20px;
+      padding: 15px 30px;
+      margin: 10px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      color: white;
+    }
+    #onBtn { background-color: #28a745; }
+    #offBtn { background-color: #dc3545; }
+    #status {
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Contrôle LED ESP32</h1>
+  <button id="onBtn">ON</button>
+  <button id="offBtn">OFF</button>
+
+  <div id="status">Statut : Inconnu</div>
+
+  <!-- MQTT.js depuis CDN -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script>
+    const statusDiv = document.getElementById('status');
+
+    // Connexion au broker HiveMQ via WebSockets
+    const client = mqtt.connect('wss://broker.hivemq.com:8000/mqtt');
+
+    client.on('connect', () => {
+      console.log('Connecté au broker MQTT');
+      statusDiv.textContent = 'Statut : Connecté au broker MQTT';
+      client.subscribe('maison/salon/led');
+    });
+
+    client.on('message', (topic, message) => {
+      const msg = message.toString();
+      console.log('Message reçu:', msg);
+      statusDiv.textContent = 'Statut LED : ' + msg;
+    });
+
+    // Fonctions pour envoyer ON/OFF
+    document.getElementById('onBtn').onclick = () => {
+      client.publish('maison/salon/led', 'ON');
+    };
+    document.getElementById('offBtn').onclick = () => {
+      client.publish('maison/salon/led', 'OFF');
+    };
+  </script>
+
+</body>
+</html>
