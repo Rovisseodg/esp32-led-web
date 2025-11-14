@@ -46,7 +46,7 @@
     const statusDiv = document.getElementById('status');
 
     // Connexion au broker HiveMQ via WebSockets
-    const client = mqtt.connect('wss://broker.hivemq.com:8000/mqtt');
+    const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
 
     client.on('connect', () => {
       console.log('Connecté au broker MQTT');
@@ -71,3 +71,4 @@
 
 </body>
 </html>
+
