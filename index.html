@@ -3,61 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <title>ESP32 LED Remote</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 50px;
-      background-color: #f4f4f4;
+      font-family: 'Montserrat', Arial, sans-serif;
+      background: linear-gradient(120deg, #e0eafc 0%, #cfdef3 100%);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    h1 { color: #333; }
+    .card {
+      background: #fff;
+      padding: 32px 40px;
+      border-radius: 24px;
+      box-shadow: 0 6px 32px rgba(30,80,165,0.08);
+      width: 100%;
+      max-width: 350px;
+      text-align: center;
+    }
+    h1 {
+      color: #236ad6;
+      margin-bottom: 32px;
+      font-size: 2rem;
+    }
+    .led-controls {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 24px;
+    }
     button {
-      font-size: 20px;
-      padding: 15px 30px;
-      margin: 10px;
+      font-size: 1.1rem;
+      padding: 14px 28px;
       border: none;
-      border-radius: 10px;
+      border-radius: 12px;
       cursor: pointer;
       color: white;
+      transition: box-shadow 0.2s, transform 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
     }
-    #onBtn { background-color: #28a745; }
-    #offBtn { background-color: #dc3545; }
+    #onBtn {
+      background: linear-gradient(90deg, #28a745, #38c76e);
+    }
+    #offBtn {
+      background: linear-gradient(90deg, #dc3545, #eb6f6f);
+    }
+    button:hover {
+      box-shadow: 0 4px 24px rgba(36,140,248,0.14);
+      transform: translateY(-2px) scale(1.04);
+    }
     #status {
       margin-top: 20px;
       font-weight: bold;
-      font-size: 18px;
+      font-size: 1.15rem;
+      color: #595959;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    @media (max-width: 480px) {
+      .card {
+        padding: 20px 10px;
+        max-width: 320px;
+      }
+      .led-controls button {
+        font-size: 0.97rem;
+        padding: 10px 12px;
+      }
+      h1 {
+        font-size: 1.4rem;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="card">
+    <h1><i class="fa-solid fa-lightbulb"></i>&nbsp;Contrôle LED ESP32</h1>
+    <div class="led-controls">
+      <button id="onBtn"><i class="fas fa-toggle-on"></i> ON</button>
+      <button id="offBtn"><i class="fas fa-toggle-off"></i> OFF</button>
+    </div>
+    <div id="status"><i class="fa-solid fa-circle-notch fa-spin" id="statusIcon"></i> Statut : Inconnu</div>
+  </div>
 
-  <h1>Contrôle LED ESP32</h1>
-  <button id="onBtn">ON</button>
-  <button id="offBtn">OFF</button>
-
-  <div id="status">Statut : Inconnu</div>
-
-  <!-- MQTT.js depuis CDN -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <script>
     const statusDiv = document.getElementById('status');
+    const statusIcon = document.getElementById('statusIcon');
 
     // Connexion au broker HiveMQ via WebSockets
     const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
 
     client.on('connect', () => {
-      console.log('Connecté au broker MQTT');
-      statusDiv.textContent = 'Statut : Connecté au broker MQTT';
+      statusDiv.textContent = 'Connecté au broker MQTT';
+      statusDiv.prepend(statusIcon);
+      statusIcon.className = "fa-solid fa-circle-check";
+      statusIcon.style.color = "#28a745";
       client.subscribe('maison/salon/led');
     });
 
     client.on('message', (topic, message) => {
       const msg = message.toString();
-      console.log('Message reçu:', msg);
-      statusDiv.textContent = 'Statut LED : ' + msg;
+      let ledStatus, iconClass, color;
+      if (msg === "ON") {
+        ledStatus = "LED : ON";
+        iconClass = "fa-solid fa-lightbulb";
+        color = "#ffc107";
+      } else if (msg === "OFF") {
+        ledStatus = "LED : OFF";
+        iconClass = "fa-regular fa-lightbulb";
+        color = "#595959";
+      } else {
+        ledStatus = "Statut : " + msg;
+        iconClass = "fa-solid fa-question";
+        color = "#595959";
+      }
+      statusDiv.textContent = ledStatus;
+      statusDiv.prepend(statusIcon);
+      statusIcon.className = iconClass;
+      statusIcon.style.color = color;
     });
 
-    // Fonctions pour envoyer ON/OFF
     document.getElementById('onBtn').onclick = () => {
       client.publish('maison/salon/led', 'ON');
     };
@@ -65,8 +140,5 @@
       client.publish('maison/salon/led', 'OFF');
     };
   </script>
-
 </body>
 </html>
-
-
