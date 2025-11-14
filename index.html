@@ -1,75 +1,91 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>ESP32 LED Remote</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP32 Control Panel</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 50px;
-      background-color: #f4f4f4;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #4c8bf5, #6ed0ff);
     }
-    h1 { color: #333; }
-    button {
-      font-size: 20px;
-      padding: 15px 30px;
+    .card {
+      background: white;
+      padding: 25px 35px;
+      border-radius: 20px;
+      box-shadow: 0px 8px 25px rgba(0,0,0,0.2);
+      text-align: center;
+      width: 320px;
+      animation: fadeIn 0.7s ease;
+    }
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(20px);} 
+      to {opacity: 1; transform: translateY(0);} 
+    }
+    h1 {
+      margin-top: 0;
+    }
+    .btn {
+      width: 120px;
+      padding: 12px;
       margin: 10px;
       border: none;
       border-radius: 10px;
+      font-size: 18px;
       cursor: pointer;
       color: white;
-      transition: transform 0.1s;
+      transition: 0.3s;
     }
-    button:active { transform: scale(0.95); }
-    #onBtn { background-color: #28a745; }
-    #offBtn { background-color: #dc3545; }
-    #status {
-      margin-top: 20px;
+    .on { background: #28c76f; }
+    .on:hover { background: #1fa75a; }
+    .off { background: #ea5455; }
+    .off:hover { background: #c94041; }
+    .status {
+      margin-top: 15px;
+      font-size: 20px;
       font-weight: bold;
-      font-size: 18px;
-      color: #555;
     }
   </style>
 </head>
 <body>
 
-  <h1>Contrôle LED ESP32</h1>
-  <button id="onBtn">ON</button>
-  <button id="offBtn">OFF</button>
+<div class="card">
+  <h1>ESP32 LED</h1>
+  <button class="btn on" onclick="turnOn()">ON</button>
+  <button class="btn off" onclick="turnOff()">OFF</button>
+  <div class="status" id="status">État : ...</div>
+</div>
 
-  <div id="status">Statut : Inconnu</div>
+<script>
+  const client = mqtt.connect('wss://test.mosquitto.org:8081/mqtt');
 
-  <!-- MQTT.js depuis CDN -->
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <script>
-    const statusDiv = document.getElementById('status');
+  client.on('connect', () => {
+    console.log('MQTT connecté');
+    client.subscribe('maison/salon/led/state');
+  });
 
-    // Connexion au broker HiveMQ via WebSockets
-    const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+  client.on('message', (topic, message) => {
+    if (topic === 'maison/salon/led/state') {
+      document.getElementById('status').innerText = 'État : ' + message.toString();
+    }
+  });
 
-    client.on('connect', () => {
-      console.log('Connecté au broker MQTT');
-      statusDiv.textContent = 'Statut : Connecté au broker MQTT';
-      client.subscribe('maison/salon/led'); // topic identique à l'ESP32
-    });
+  function turnOn() {
+    client.publish('maison/salon/led', 'on');
+  }
 
-    client.on('message', (topic, message) => {
-      const msg = message.toString();
-      console.log('Message reçu:', msg);
-      statusDiv.textContent = 'Statut LED : ' + msg;
-    });
+  function turnOff() {
+    client.publish('maison/salon/led', 'off');
+  }
+</script>
 
-    // Fonctions pour envoyer ON/OFF
-    document.getElementById('onBtn').onclick = () => {
-      client.publish('maison/salon/led', 'ON');
-    };
-    document.getElementById('offBtn').onclick = () => {
-      client.publish('maison/salon/led', 'OFF');
-    };
-  </script>
+  <div id="led-status" class="mt-4 text-xl font-semibold">LED Status : <span id="led-state">Unknown</span></div>
 
 </body>
 </html>
-
-
