@@ -1,71 +1,219 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>ESP32 LED Remote</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 50px;
-      background-color: #f4f4f4;
-    }
-    h1 { color: #333; }
-    button {
-      font-size: 20px;
-      padding: 15px 30px;
-      margin: 10px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      color: white;
-    }
-    #onBtn { background-color: #28a745; }
-    #offBtn { background-color: #dc3545; }
-    #status {
-      margin-top: 20px;
-      font-weight: bold;
-      font-size: 18px;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contrôle LED ESP32 - Amélioré</title>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Variables pour une gestion facile des couleurs */
+    :root {
+      --color-primary: #3b82f6; /* Bleu doux */
+      --color-success: #10b981; /* Vert clair pour ON */
+      --color-danger: #ef4444;   /* Rouge pour OFF */
+      --color-bg: #f8fafc;
+      --color-card-bg: #ffffff;
+      --color-text: #1f2937;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: var(--color-bg);
+      color: var(--color-text);
+    }
+    
+    .card {
+      background-color: var(--color-card-bg);
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 300px;
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    h1 {
+      color: var(--color-primary);
+      margin-bottom: 30px;
+      font-weight: 700;
+    }
+    
+    /* Style du bouton unique (Interrupteur) */
+    #toggleBtn {
+      width: 180px;
+      height: 180px;
+      font-size: 24px;
+      font-weight: 600;
+      border-radius: 50%; /* Bouton rond */
+      border: none;
+      cursor: pointer;
+      color: white;
+      transition: background-color 0.4s, box-shadow 0.4s, transform 0.2s;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    #toggleBtn:active {
+      transform: scale(0.98);
+    }
+
+    /* Styles basés sur l'état */
+    .status-off {
+      background-color: var(--color-danger);
+    }
+    .status-off:hover {
+      background-color: #c52934;
+    }
+
+    .status-on {
+      background-color: var(--color-success);
+      box-shadow: 0 0 25px rgba(16, 185, 129, 0.5); /* Effet de lueur */
+    }
+    .status-on:hover {
+      background-color: #0d9467;
+    }
+
+    .status-loading {
+      background-color: #9ca3af; /* Gris pour l'attente/inconnu */
+      cursor: wait;
+    }
+
+    /* Affichage du statut en bas */
+    #statusDisplay {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #4b5563;
+    }
+
+    .indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+    .indicator-on { background-color: var(--color-success); }
+    .indicator-off { background-color: var(--color-danger); }
+    .indicator-loading { 
+      background-color: #f59e0b; 
+      animation: blink 1s infinite;
+    }
+
+    /* Animation de clignotement pour le chargement */
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+  </style>
 </head>
 <body>
 
-  <h1>Contrôle LED ESP32</h1>
-  <button id="onBtn">ON</button>
-  <button id="offBtn">OFF</button>
+<div class="card">
+  <h1>Contrôle de la Lumière</h1>
+  
+  <button id="toggleBtn" class="status-loading">Chargement...</button>
 
-  <div id="status">Statut : Inconnu</div>
+  <div id="statusDisplay">
+    <div id="indicator" class="indicator indicator-loading"></div>
+    <span id="statusText">Statut : Connexion en cours...</span>
+  </div>
+</div>
 
-  <!-- MQTT.js depuis CDN -->
-  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-  <script>
-    const statusDiv = document.getElementById('status');
+<script>
+    // --- Configuration ---
+    const TOPIC_STATE = 'maison/salon/led'; // Le topic que l'ESP32 publie ET reçoit
+    const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
 
-    // Connexion au broker HiveMQ via WebSockets
-    const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+    // --- Éléments DOM ---
+    const toggleBtn = document.getElementById('toggleBtn');
+    const statusText = document.getElementById('statusText');
+    const indicator = document.getElementById('indicator');
 
-    client.on('connect', () => {
-      console.log('Connecté au broker MQTT');
-      statusDiv.textContent = 'Statut : Connecté au broker MQTT';
-      client.subscribe('maison/salon/led');
-    });
+    let ledState = 'UNKNOWN'; // 'ON', 'OFF', 'UNKNOWN'
 
-    client.on('message', (topic, message) => {
-      const msg = message.toString();
-      console.log('Message reçu:', msg);
-      statusDiv.textContent = 'Statut LED : ' + msg;
-    });
+    // --- Fonctions UI ---
 
-    // Fonctions pour envoyer ON/OFF
-    document.getElementById('onBtn').onclick = () => {
-      client.publish('maison/salon/led', 'ON');
-    };
-    document.getElementById('offBtn').onclick = () => {
-      client.publish('maison/salon/led', 'OFF');
-    };
-  </script>
+    function updateLED_UI(state) {
+      ledState = state;
+      
+      // Réinitialiser les classes
+      toggleBtn.className = '';
+      indicator.className = 'indicator';
+
+      if (state === 'ON') {
+        toggleBtn.classList.add('status-on');
+        toggleBtn.innerText = 'ÉTEINDRE';
+        indicator.classList.add('indicator-on');
+        statusText.textContent = 'Statut LED : Allumée';
+      } else if (state === 'OFF') {
+        toggleBtn.classList.add('status-off');
+        toggleBtn.innerText = 'ALLUMER';
+        indicator.classList.add('indicator-off');
+        statusText.textContent = 'Statut LED : Éteinte';
+      } else { // UNKNOWN ou déconnecté
+        toggleBtn.classList.add('status-loading');
+        toggleBtn.innerText = 'Chargement...';
+        indicator.classList.add('indicator-loading');
+        statusText.textContent = 'Statut : ' + (state === 'UNKNOWN' ? 'État Inconnu' : 'Déconnecté du Broker');
+      }
+    }
+
+    function toggleLED() {
+      if (ledState === 'UNKNOWN') return; // Bloquer si l'état n'est pas clair
+
+      // Déterminer la nouvelle commande
+      const newCommand = (ledState === 'ON' ? 'OFF' : 'ON');
+
+      // Publier la commande
+      client.publish(TOPIC_STATE, newCommand);
+      
+      // Optionnel : Mettre l'UI en état d'attente
+      updateLED_UI('UNKNOWN');
+    }
+
+
+    // --- Logique MQTT ---
+    const client = mqtt.connect(BROKER_URL);
+
+    client.on('connect', () => {
+      console.log('Connecté au broker MQTT');
+      // S'abonner au topic d'état
+      client.subscribe(TOPIC_STATE);
+      statusText.textContent = 'Statut : Connecté, en attente de l\'état LED...';
+      updateLED_UI('UNKNOWN');
+    });
+
+    client.on('message', (topic, message) => {
+      const msg = message.toString().toUpperCase().trim();
+      console.log('Message reçu:', msg);
+      
+      if (msg === 'ON' || msg === 'OFF') {
+        updateLED_UI(msg);
+      }
+    });
+
+    client.on('close', () => {
+      console.log('Déconnecté du broker MQTT');
+      updateLED_UI('DISCONNECTED');
+    });
+    
+    // Assigner l'événement au bouton
+    toggleBtn.addEventListener('click', toggleLED);
+
+    // Initialisation de l'UI
+    updateLED_UI('UNKNOWN');
+</script>
 
 </body>
 </html>
-
